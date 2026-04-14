@@ -36,12 +36,20 @@ class Settings(BaseSettings):
     # Workload Identity Federation (preferred).
     gcp_sa_key_path: str = Field("", alias="GOOGLE_APPLICATION_CREDENTIALS")
 
-    # ── GCS Artifact Bucket ──────────────────────────────────────────
-    # Engines upload zipped repos to this bucket.  The gateway generates
-    # pre-signed URLs pointing here for customer download.
+    # ── Artifact Storage (Cloud-Agnostic) ────────────────────────────
+    # Backend for artifact upload: "gcs", "s3", "azure", "local".
+    # Auto-detected from bucket/env if not set.
+    artifact_backend: str = Field("", alias="ARTIFACT_BACKEND")
+    # Bucket / container name (works for GCS, S3, and Azure).
+    artifact_bucket: str = Field("", alias="ARTIFACT_BUCKET")
+    # Legacy alias — kept for backward compatibility with GCS-only deploys.
     gcs_artifact_bucket: str = Field("", alias="GCS_ARTIFACT_BUCKET")
     # Pre-signed URL lifetime in seconds (default 15 minutes).
     presigned_url_ttl: int = Field(900, alias="PRESIGNED_URL_TTL")
+    # Local artifact directory for on-prem / dev use.
+    local_artifact_dir: str = Field("", alias="LOCAL_ARTIFACT_DIR")
+    # Azure storage account URL.
+    azure_storage_account_url: str = Field("", alias="AZURE_STORAGE_ACCOUNT_URL")
 
     # ── AWS / Bedrock ────────────────────────────────────────────────
     aws_region: str = Field("us-east-1", alias="AWS_REGION")

@@ -167,6 +167,16 @@ class JobRequest(BaseModel):
     pdf_base64: Optional[str] = None
     paper_text: Optional[str] = None
 
+    # LLM provider / model override (forwarded to the engine via ENGINE_OPTIONS)
+    provider: Optional[str] = Field(
+        None,
+        description="LLM provider override (e.g. 'gemini', 'openai', 'anthropic', 'ollama')",
+    )
+    model: Optional[str] = Field(
+        None,
+        description="Model name override (e.g. 'gemini-2.0-flash', 'gpt-4o')",
+    )
+
     # Engine-specific options
     output_dir: str = ""
     options: dict = Field(default_factory=dict)

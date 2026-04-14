@@ -1,6 +1,6 @@
 # Any2Repo-Gateway v2.0
 
-Control-plane gateway for **Research2Repo**, **Quant2Repo**, and pluggable engines. Routes conversion jobs to **GCP Vertex AI**, **AWS Bedrock**, **Azure ML**, or **on-premise infrastructure**.
+Control-plane gateway for **Research2Repo**, **Quant2Repo**, and pluggable engines. Routes conversion jobs to **GCP Vertex AI**, **AWS Bedrock**, **Azure ML**, or **on-premise infrastructure**. Features **async state machine** with persistent store, **HMAC-signed webhooks**, **cloud-agnostic artifact delivery** (GCS/S3/Azure Blob/local), **BYOC tunnel registration**, and **multi-model** provider routing.
 
 **No LangChain. No LangGraph.** Just FastAPI + boto3 + Vertex AI SDK + azure-ai-ml + httpx.
 
@@ -19,18 +19,25 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture docum
 │   Client /   │─────>│     Any2Repo-Gateway        │─────>│  GCP Vertex AI   │
 │   Frontend   │      │     (FastAPI + Auth)         │      └──────────────────┘
 └──────────────┘      │                             │
-                      │  - Tenant auth              │      ┌──────────────────┐
-  Pluggable Engine    │  - Job routing              │─────>│  AWS Bedrock     │
-  Protocol            │  - Status tracking          │      └──────────────────┘
-  ───────────────>    │  - IAM / WIF                │
-  JSON manifests      │  - Engine registry          │      ┌──────────────────┐
-  register engines    │  - Backend abstraction      │─────>│  Azure ML        │
-                      │                             │      └──────────────────┘
+                      │  - Tenant auth + BYOC       │      ┌──────────────────┐
+  Pluggable Engine    │  - Async state machine      │─────>│  AWS Bedrock     │
+  Protocol            │  - HMAC webhook ingestion   │      └──────────────────┘
+  ───────────────>    │  - Cloud-agnostic artifacts  │
+  JSON manifests      │  - Multi-model routing      │      ┌──────────────────┐
+  register engines    │  - Persistent store          │─────>│  Azure ML        │
+                      │    (Memory / Firestore)     │      └──────────────────┘
                       │                             │
                       │                             │      ┌──────────────────┐
                       │                             │─────>│  On-Prem         │
-                      └─────────────────────────────┘      │  (Docker / K8s)  │
-                                                           └──────────────────┘
+                      └──────────┬──────────────────┘      │  (Docker / K8s)  │
+                                 │                         └──────────────────┘
+                                 │
+                    ┌────────────┴────────────┐
+                    │  Cloud Storage           │
+                    │  (GCS / S3 / Azure Blob) │
+                    │  Artifact upload +       │
+                    │  pre-signed URL delivery │
+                    └─────────────────────────┘
 ```
 
 ## Quick Start
@@ -111,6 +118,19 @@ curl -X POST http://localhost:8000/api/v1/jobs \
     "cloud_backend": "on_prem"
   }'
 
+# Submit a job with a specific LLM provider and model
+curl -X POST http://localhost:8000/api/v1/jobs \
+  -H "X-API-Key: your-key" \
+  -H "X-Tenant-ID: default" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "engine": "research2repo",
+    "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf",
+    "provider": "gemini",
+    "model": "gemini-2.5-pro",
+    "options": {"mode": "agent", "refine": true}
+  }'
+
 # Check job status
 curl http://localhost:8000/api/v1/jobs/{job_id} \
   -H "X-API-Key: your-key" \
@@ -137,6 +157,7 @@ All settings are environment variables (see `.env.example`):
 | Variable | Description | Default |
 |---|---|---|
 | `API_KEYS` | Comma-separated valid API keys | (empty = no auth) |
+| `STORE_BACKEND` | State store backend: `memory` or `firestore` | `memory` |
 | `GCP_PROJECT_ID` | GCP project for Vertex AI | |
 | `GCP_REGION` | GCP region | `us-central1` |
 | `AWS_REGION` | AWS region for Bedrock | `us-east-1` |
@@ -149,6 +170,13 @@ All settings are environment variables (see `.env.example`):
 | `ON_PREM_ENDPOINT` | Base URL of on-prem execution service | `http://localhost:9000` |
 | `ON_PREM_DOCKER_NETWORK` | Docker network for on-prem containers | `any2repo` |
 | `ENGINE_MANIFESTS_DIR` | Directory containing engine JSON manifests | `./manifests` |
+| `ARTIFACT_BACKEND` | Artifact storage: `gcs`, `s3`, `azure`, `local` | (auto-detect) |
+| `ARTIFACT_BUCKET` | Bucket/container for artifact upload | |
+| `GCS_ARTIFACT_BUCKET` | Legacy alias for `ARTIFACT_BUCKET` (GCS) | |
+| `PRESIGNED_URL_TTL` | Pre-signed URL lifetime in seconds | `900` |
+| `LOCAL_ARTIFACT_DIR` | Base dir for local artifacts | |
+| `AZURE_STORAGE_ACCOUNT_URL` | Azure storage account URL | |
+| `WEBHOOK_SECRET` | HMAC-SHA256 secret for webhook signatures | |
 
 ## Cross-Cloud IAM (Workload Identity Federation)
 
@@ -189,6 +217,8 @@ docker run -p 8000:8000 \
 | `POST` | `/api/v1/tenants` | Register tenant |
 | `GET` | `/api/v1/tenants` | List tenants |
 | `GET` | `/api/v1/tenants/{id}` | Get tenant details |
+| `POST` | `/api/v1/tenants/{id}/register-tunnel` | Register BYOC Cloudflare Tunnel |
+| `POST` | `/api/v1/webhooks/engine-complete` | Engine completion webhook (HMAC-signed) |
 
 ## Supported Backends
 

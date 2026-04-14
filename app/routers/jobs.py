@@ -89,6 +89,8 @@ async def submit_job(req: JobRequest, request: Request) -> JobResponse:
         "catalog_id": req.catalog_id or "",
         "output_dir": req.output_dir,
         "options": req.options,
+        "provider": req.provider or "",
+        "model": req.model or "",
     }
 
     job_resp = await backend.submit_job(

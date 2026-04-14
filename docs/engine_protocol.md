@@ -3,7 +3,7 @@
 > **Status:** Stable  
 > **Version:** 1.0  
 > **Last Updated:** 2025-01-15  
-> **Authors:** Vijayakumar Ramdoss (nellaivijay@gmail.com)
+> **Authors:** Vijayakumar Ramdoss
 
 ---
 
@@ -19,6 +19,9 @@
 8. [Error Handling](#8-error-handling)
 9. [Conformance Checklist](#9-conformance-checklist)
 10. [Examples](#10-examples)
+11. [Webhook Delivery](#11-webhook-delivery)
+12. [Artifact Upload & Cloud-Agnostic Storage](#12-artifact-upload--cloud-agnostic-storage)
+13. [Multi-Model Support](#13-multi-model-support)
 
 ---
 
@@ -150,6 +153,14 @@ When running as a container job (GCP Vertex AI Custom Jobs, AWS Bedrock, Azure M
 | `ENGINE_OPTIONS` | `string` | No | JSON-encoded string of engine-specific options (e.g., `{"model":"gpt-4","temperature":0.2}`). |
 | `OUTPUT_DIR` | `string` | **Yes** | Filesystem path where the engine must write its output. Guaranteed to exist and be writable. |
 | `CALLBACK_URL` | `string` | No | HTTPS URL the engine should POST status updates to upon completion or failure. |
+| `WEBHOOK_URL` | `string` | No | HTTPS URL for the gateway's webhook endpoint (e.g. `/api/v1/webhooks/engine-complete`). Preferred over `CALLBACK_URL`. |
+| `WEBHOOK_SECRET` | `string` | No | HMAC-SHA256 secret for signing webhook payloads. When set, engine must include `X-Webhook-Signature` header. |
+| `ARTIFACT_BACKEND` | `string` | No | Storage backend for artifact upload: `"gcs"`, `"s3"`, `"azure"`, `"local"`. Auto-detected from other env vars if not set. |
+| `ARTIFACT_BUCKET` | `string` | No | Bucket or container name for artifact upload (required for cloud backends). |
+| `GCS_ARTIFACT_BUCKET` | `string` | No | Legacy alias for `ARTIFACT_BUCKET` (GCS-only deploys). |
+| `PRESIGNED_URL_TTL` | `string` | No | Pre-signed URL lifetime in seconds (default: `"900"`). |
+| `LOCAL_ARTIFACT_DIR` | `string` | No | Base directory for local filesystem artifact storage. |
+| `AZURE_STORAGE_ACCOUNT_URL` | `string` | No | Azure storage account URL (required when `ARTIFACT_BACKEND=azure`). |
 
 **Rules:**
 - At least one of `PDF_URL`, `PDF_BASE64`, or `PAPER_TEXT` must be provided.
@@ -195,6 +206,10 @@ When running as a persistent HTTP service, the gateway sends a `POST` request wi
 | `ENGINE_OPTIONS` | `engine_options` | Parsed JSON object (not a string). |
 | `OUTPUT_DIR` | `output_dir` | Identical semantics. |
 | `CALLBACK_URL` | `callback_url` | `null` if not provided. |
+| `WEBHOOK_URL` | `webhook_url` | `null` if not provided. |
+| `WEBHOOK_SECRET` | `webhook_secret` | `null` if not provided. |
+| `ARTIFACT_BACKEND` | `artifact_backend` | `null` if not provided. |
+| `ARTIFACT_BUCKET` | `artifact_bucket` | `null` if not provided. |
 
 **Response (Accepted):**
 
@@ -276,6 +291,10 @@ Write a JSON file to `{OUTPUT_DIR}/.any2repo_status.json`:
 | `files_generated` | `integer` | No | Count of files produced (excluding the status file itself). Default: `0`. |
 | `elapsed_seconds` | `float` | No | Wall-clock execution time in seconds. Default: `0.0`. |
 | `metadata` | `object` | No | Free-form key-value metadata. Engines may include model info, token counts, validation results, etc. |
+| `engine_id` | `string` | No | Engine identifier (e.g., `"research2repo"`, `"quant2repo"`). |
+| `artifact_url` | `string` | No | Pre-signed download URL for the zipped output artifact. Time-limited. |
+| `artifact_size_bytes` | `integer` | No | Size of the zip artifact in bytes. |
+| `completed_at` | `string` | No | ISO 8601 UTC timestamp of job completion. |
 
 #### Mechanism B: Callback URL
 
@@ -387,6 +406,13 @@ Every job progresses through a well-defined set of states.
                  |  PENDING  |
                  +-----+-----+
                        |
+              (backend dispatches)
+                       |
+                       v
+                +-----------+
+                | DISPATCHED|
+                +-----+-----+
+                       |
               (engine picks up job)
                        |
                        v
@@ -400,6 +426,16 @@ Every job progresses through a well-defined set of states.
    +-----------+ +-----------+ +-----------+
    | COMPLETED | |  FAILED   | | CANCELLED |
    +-----------+ +-----------+ +-----------+
+          |
+          v
+   +-----------+
+   | DELIVERING|
+   +-----+-----+
+          |
+          v
+   +-----------+
+   | DELIVERED |
+   +-----------+
 ```
 
 ### State Descriptions
@@ -407,10 +443,13 @@ Every job progresses through a well-defined set of states.
 | State | Description | Who Sets It |
 |-------|-------------|-------------|
 | `PENDING` | Job has been accepted but execution has not started. | Gateway |
+| `DISPATCHED` | Job has been sent to the backend for execution but engine has not started yet. | Gateway |
 | `RUNNING` | Engine is actively processing the job. | Engine (implicitly, by beginning execution) |
 | `COMPLETED` | Job finished successfully. Output is available. | Engine (via status file / callback) |
 | `FAILED` | Job terminated due to an error. | Engine (via status file / callback) or Gateway (on timeout) |
 | `CANCELLED` | Job was cancelled before completion. | Gateway (via cancel API or operator action) |
+| `DELIVERING` | Job completed, gateway is pushing artifacts to tenant (BYOC tunnel or pre-signed URL). | Gateway |
+| `DELIVERED` | Artifacts successfully delivered to tenant. Terminal state. | Gateway |
 
 ### Lifecycle Rules
 
@@ -943,6 +982,161 @@ curl -X POST http://engine:8080/api/v1/cancel/job-20250115-001
 
 ---
 
+## 11. Webhook Delivery
+
+Starting with Protocol v1.1, engines **should** prefer the webhook mechanism over the legacy `CALLBACK_URL` for notifying the gateway of job completion.
+
+### Endpoint
+
+```
+POST {WEBHOOK_URL}
+Content-Type: application/json
+X-Webhook-Signature: <hmac-sha256-hex>
+```
+
+### Signature
+
+When `WEBHOOK_SECRET` is provided, the engine **must** compute an HMAC-SHA256 signature over the raw JSON body and include it in the `X-Webhook-Signature` header:
+
+```python
+import hmac, hashlib, json
+
+body = json.dumps(payload).encode()
+sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+headers["X-Webhook-Signature"] = sig
+```
+
+The gateway verifies this signature before processing the webhook. Webhooks with invalid or missing signatures are rejected with `403 Forbidden`.
+
+### Payload
+
+The webhook payload matches the status file schema with the addition of `artifact_url` and `artifact_size_bytes`:
+
+```json
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",
+  "engine_id": "research2repo",
+  "artifact_url": "https://storage.googleapis.com/bucket/jobs/550e8400/output.zip?X-Goog-Signature=...",
+  "artifact_size_bytes": 2457600,
+  "files_generated": 14,
+  "elapsed_seconds": 152.3,
+  "error": null,
+  "output_url": null,
+  "metadata": {
+    "tenant_id": "acme-corp",
+    "mode": "agent",
+    "provider": "gemini",
+    "model": "gemini-2.5-pro"
+  }
+}
+```
+
+### Gateway Response
+
+```json
+HTTP/1.1 200 OK
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "completed",
+  "delivery_initiated": true,
+  "message": "Artifact delivery initiated via pre-signed URL"
+}
+```
+
+### Backward Compatibility
+
+Engines may support both `WEBHOOK_URL` and `CALLBACK_URL`. When both are provided, `WEBHOOK_URL` takes precedence. The legacy callback mechanism remains supported but is not recommended for new integrations.
+
+---
+
+## 12. Artifact Upload & Cloud-Agnostic Storage
+
+Engines that produce output artifacts (e.g., generated repositories) **should** upload them to cloud storage and include a pre-signed download URL in the webhook/status payload. This avoids the gateway having to stream large files through its own infrastructure.
+
+### Supported Backends
+
+| Backend | Env Var | URI Format | Pre-signed URL |
+|---------|---------|------------|----------------|
+| **GCS** | `ARTIFACT_BACKEND=gcs` | `gs://bucket/key` | GCS v4 signed URL |
+| **S3** | `ARTIFACT_BACKEND=s3` | `s3://bucket/key` | S3 pre-signed URL |
+| **Azure Blob** | `ARTIFACT_BACKEND=azure` | `https://account.blob.core.windows.net/container/key` | Azure SAS URL |
+| **Local** | `ARTIFACT_BACKEND=local` | `file:///path/to/file` | `file://` path (dev only) |
+
+### Auto-Detection
+
+If `ARTIFACT_BACKEND` is not set, engines **should** auto-detect the backend:
+
+1. If `GCS_ARTIFACT_BUCKET` is set → GCS
+2. If `AWS_REGION` is set and `ARTIFACT_BUCKET` is set → S3
+3. If `AZURE_STORAGE_ACCOUNT_URL` is set → Azure Blob
+4. If `LOCAL_ARTIFACT_DIR` is set → Local filesystem
+5. Otherwise → no artifact upload (status file only)
+
+### Upload Flow
+
+1. Engine zips `OUTPUT_DIR` into `{OUTPUT_DIR}_artifact.zip`
+2. Uploads zip to `{backend}://bucket/jobs/{JOB_ID}/output.zip`
+3. Generates a pre-signed download URL (TTL from `PRESIGNED_URL_TTL`, default 900s)
+4. Includes `artifact_url` and `artifact_size_bytes` in the status file and webhook payload
+5. Cleans up the local zip file
+
+### Error Handling
+
+If artifact upload fails, the engine **should** still:
+- Write the status file with `artifact_url=""` and `artifact_size_bytes=0`
+- Send the webhook notification
+- Log the upload error
+- Exit with code 0 (the pipeline itself succeeded)
+
+The gateway will detect the missing artifact URL and may retry or fall back to reading from the container filesystem.
+
+---
+
+## 13. Multi-Model Support
+
+Engines that support multiple LLM providers **should** accept provider and model overrides through environment variables or `ENGINE_OPTIONS`. This enables tenants to choose their preferred provider when submitting jobs through the gateway.
+
+### Provider Override
+
+The gateway forwards provider/model selection to the engine via:
+
+1. **Dedicated env vars** (highest priority): `{ENGINE_PREFIX}_PROVIDER`, `{ENGINE_PREFIX}_MODEL`
+   - Research2Repo: `R2R_PROVIDER`, `R2R_MODEL`
+   - Quant2Repo: `Q2R_PROVIDER`, `Q2R_MODEL`
+2. **ENGINE_OPTIONS fields**: `provider`, `model`
+3. **Engine defaults** (lowest priority): auto-detected from available API keys
+
+### JobRequest Schema
+
+The gateway's `POST /api/v1/jobs` now accepts optional `provider` and `model` fields:
+
+```json
+{
+  "engine": "research2repo",
+  "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf",
+  "provider": "gemini",
+  "model": "gemini-2.5-pro",
+  "options": {
+    "mode": "agent",
+    "refine": true
+  }
+}
+```
+
+These values are forwarded to the engine as env vars (`R2R_PROVIDER=gemini`, `R2R_MODEL=gemini-2.5-pro`) or merged into `ENGINE_OPTIONS`.
+
+### Supported Providers
+
+| Provider | Env Var for API Key | Example Models |
+|----------|-------------------|----------------|
+| `gemini` | `GEMINI_API_KEY` | `gemini-2.5-pro`, `gemini-2.0-flash` |
+| `openai` | `OPENAI_API_KEY` | `gpt-4o`, `o3`, `gpt-4-turbo` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514`, `claude-opus-4-20250514` |
+| `ollama` | `OLLAMA_HOST` | `deepseek-coder-v2`, `llama3.1` |
+
+---
+
 ## Appendix A: JSON Schemas
 
 For programmatic validation, OpenAPI and JSON Schema definitions are available in the gateway repository:
@@ -957,7 +1151,8 @@ For programmatic validation, OpenAPI and JSON Schema definitions are available i
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2025-01-15 | Initial release of the Engine Protocol specification. |
+| 1.1 | 2025-07-20 | Added webhook delivery (Section 11), cloud-agnostic artifact storage (Section 12), multi-model support (Section 13). Added DISPATCHED, DELIVERING, DELIVERED job states. |
 
 ---
 
-*This specification is maintained by Vijayakumar Ramdoss (nellaivijay@gmail.com). For questions, issues, or proposals, open an issue in the `Any2Repo-Gateway` repository.*
+*This specification is maintained by Vijayakumar Ramdoss. For questions, issues, or proposals, open an issue in the `Any2Repo-Gateway` repository.*
