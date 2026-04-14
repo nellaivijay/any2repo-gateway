@@ -1,10 +1,11 @@
 """Any2Repo-Gateway — FastAPI application entry point.
 
 A lightweight HTTP control plane that routes paper-to-repo conversion
-requests to the appropriate execution engine (Research2Repo or
-Quant2Repo) running on GCP Vertex AI or AWS Bedrock.
+requests to the appropriate execution engine (Research2Repo, Quant2Repo,
+or any pluggable engine) running on GCP Vertex AI, AWS Bedrock, Azure ML,
+or on-premise infrastructure.
 
-No LangChain.  No LangGraph.  Just FastAPI + boto3 + Vertex AI SDK.
+No LangChain.  No LangGraph.  Just FastAPI + cloud SDKs.
 """
 
 from __future__ import annotations
@@ -16,8 +17,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.engine_manifest import init_manifests, list_manifests
+from app.engine_registry import list_supported_backends
 from app.middleware.auth import TenantAuthMiddleware, seed_default_tenant
-from app.routers import jobs, tenants
+from app.routers import engines, jobs, tenants
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -33,6 +36,11 @@ async def lifespan(app: FastAPI):
     logger.info("Starting %s (%s)", settings.app_name, settings.environment)
     seed_default_tenant()
 
+    # Load engine manifests (built-in + plugin directory)
+    init_manifests(settings.engine_manifests_dir)
+    manifests = list_manifests()
+    logger.info("Loaded %d engine manifest(s)", len(manifests))
+
     # Pre-warm Workload Identity Federation if AWS role is configured
     if settings.aws_role_arn:
         try:
@@ -47,10 +55,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Any2Repo Gateway",
-    version="1.0.0",
+    version="2.0.0",
     description=(
-        "Control-plane gateway for Research2Repo and Quant2Repo engines. "
-        "Routes conversion jobs to GCP Vertex AI or AWS Bedrock."
+        "Control-plane gateway for Research2Repo, Quant2Repo, and pluggable "
+        "engines. Routes conversion jobs to GCP Vertex AI, AWS Bedrock, "
+        "Azure ML, or on-premise infrastructure."
     ),
     lifespan=lifespan,
 )
@@ -70,6 +79,7 @@ app.add_middleware(TenantAuthMiddleware)
 
 app.include_router(jobs.router)
 app.include_router(tenants.router)
+app.include_router(engines.router)
 
 
 # ── Root / Health ────────────────────────────────────────────────────────
@@ -77,12 +87,13 @@ app.include_router(tenants.router)
 @app.get("/", tags=["health"])
 async def root():
     """Root endpoint — basic service info."""
+    manifests = list_manifests()
     return {
         "service": settings.app_name,
-        "version": "1.0.0",
+        "version": "2.0.0",
         "environment": settings.environment,
-        "engines": ["research2repo", "quant2repo"],
-        "backends": ["gcp_vertex", "aws_bedrock"],
+        "engines": [m.engine_id for m in manifests],
+        "backends": list_supported_backends(),
     }
 
 

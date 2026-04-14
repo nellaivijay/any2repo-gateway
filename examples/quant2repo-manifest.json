@@ -1,0 +1,26 @@
+{
+  "engine_id": "quant2repo",
+  "version": "2.0.0",
+  "display_name": "Quant2Repo",
+  "description": "Convert quantitative finance papers into trading strategy repositories",
+  "protocol_version": "1.0",
+  "capabilities": [
+    "pdf_input",
+    "text_input",
+    "catalog_input",
+    "github_output",
+    "local_output",
+    "streaming_logs",
+    "incremental_validation"
+  ],
+  "accepted_inputs": ["pdf_url", "pdf_base64", "paper_text", "catalog_id"],
+  "container_image": "any2repo/quant2repo:latest",
+  "entrypoint": ["python", "-m", "main"],
+  "env_defaults": {},
+  "supported_backends": ["gcp_vertex", "aws_bedrock", "azure_ml", "on_prem"],
+  "health_endpoint": "/health",
+  "cpu_request": "4",
+  "memory_request": "16Gi",
+  "gpu_required": false,
+  "timeout_seconds": 3600
+}

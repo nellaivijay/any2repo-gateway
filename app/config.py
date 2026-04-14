@@ -40,9 +40,21 @@ class Settings(BaseSettings):
         "", alias="AWS_WEB_IDENTITY_TOKEN_FILE"
     )
 
+    # ── Azure / Azure ML ─────────────────────────────────────────────
+    azure_subscription_id: str = Field("", alias="AZURE_SUBSCRIPTION_ID")
+    azure_resource_group: str = Field("", alias="AZURE_RESOURCE_GROUP")
+    azure_workspace_name: str = Field("", alias="AZURE_WORKSPACE_NAME")
+    azure_region: str = Field("eastus", alias="AZURE_REGION")
+
+    # ── On-prem ──────────────────────────────────────────────────────
+    on_prem_endpoint: str = Field("", alias="ON_PREM_ENDPOINT")
+    on_prem_docker_network: str = Field("any2repo", alias="ON_PREM_DOCKER_NETWORK")
+
     # ── Engine defaults ──────────────────────────────────────────────
     default_engine: str = Field("research2repo", alias="DEFAULT_ENGINE")
     job_ttl_hours: int = Field(72, alias="JOB_TTL_HOURS")
+    # Directory containing engine manifest JSON files for plugin discovery
+    engine_manifests_dir: str = Field("", alias="ENGINE_MANIFESTS_DIR")
 
     model_config = {"env_prefix": "", "case_sensitive": False}
 

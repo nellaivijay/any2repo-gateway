@@ -1,7 +1,7 @@
 [project]
 name = "any2repo-gateway"
-version = "1.0.0"
-description = "Lightweight control-plane gateway for Research2Repo and Quant2Repo execution engines"
+version = "2.0.0"
+description = "Control-plane gateway for Research2Repo, Quant2Repo, and pluggable execution engines"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
@@ -14,6 +14,9 @@ dependencies = [
     "google-auth>=2.30.0",
     # AWS
     "boto3>=1.34.0",
+    # Azure
+    "azure-ai-ml>=1.16.0",
+    "azure-identity>=1.17.0",
 ]
 
 [project.optional-dependencies]

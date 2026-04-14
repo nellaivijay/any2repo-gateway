@@ -1,0 +1,25 @@
+{
+  "engine_id": "research2repo",
+  "version": "2.0.0",
+  "display_name": "Research2Repo",
+  "description": "Convert ML/AI research papers into fully functional repositories",
+  "protocol_version": "1.0",
+  "capabilities": [
+    "pdf_input",
+    "text_input",
+    "github_output",
+    "local_output",
+    "streaming_logs",
+    "incremental_validation"
+  ],
+  "accepted_inputs": ["pdf_url", "pdf_base64", "paper_text"],
+  "container_image": "any2repo/research2repo:latest",
+  "entrypoint": ["python", "-m", "main"],
+  "env_defaults": {},
+  "supported_backends": ["gcp_vertex", "aws_bedrock", "azure_ml", "on_prem"],
+  "health_endpoint": "/health",
+  "cpu_request": "4",
+  "memory_request": "16Gi",
+  "gpu_required": false,
+  "timeout_seconds": 3600
+}

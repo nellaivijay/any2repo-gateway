@@ -1,0 +1,20 @@
+{
+  "engine_id": "custom-engine",
+  "version": "0.1.0",
+  "display_name": "Custom Engine (Template)",
+  "description": "Template manifest for a custom engine plugin",
+  "protocol_version": "1.0",
+  "capabilities": ["pdf_input", "text_input", "local_output"],
+  "accepted_inputs": ["pdf_url", "paper_text"],
+  "container_image": "your-registry.example.com/your-engine:latest",
+  "entrypoint": ["python", "-m", "your_engine.main"],
+  "env_defaults": {
+    "LOG_LEVEL": "INFO"
+  },
+  "supported_backends": ["on_prem"],
+  "health_endpoint": "/health",
+  "cpu_request": "2",
+  "memory_request": "8Gi",
+  "gpu_required": false,
+  "timeout_seconds": 1800
+}

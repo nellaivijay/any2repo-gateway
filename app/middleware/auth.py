@@ -7,12 +7,13 @@ dependencies — just dict lookups.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Optional
 
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from app.config import settings
 from app.models.schemas import Tenant, CloudBackend, EngineType
@@ -82,18 +83,18 @@ class TenantAuthMiddleware(BaseHTTPMiddleware):
 
         if valid_keys and api_key not in valid_keys:
             logger.warning("Rejected request: invalid API key")
-            raise HTTPException(status_code=401, detail="Invalid API key")
+            return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
 
         # --- Tenant ID ---
         tenant_id = request.headers.get("X-Tenant-ID", "")
         if not tenant_id:
-            raise HTTPException(status_code=400, detail="Missing X-Tenant-ID header")
+            return JSONResponse(status_code=400, content={"detail": "Missing X-Tenant-ID header"})
 
         tenant = get_tenant(tenant_id)
         if tenant is None:
-            raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
+            return JSONResponse(status_code=404, content={"detail": f"Tenant '{tenant_id}' not found"})
         if not tenant.active:
-            raise HTTPException(status_code=403, detail=f"Tenant '{tenant_id}' is deactivated")
+            return JSONResponse(status_code=403, content={"detail": f"Tenant '{tenant_id}' is deactivated"})
 
         # Attach tenant to request state for downstream use
         request.state.tenant = tenant
