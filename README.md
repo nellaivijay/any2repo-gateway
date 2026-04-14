@@ -6,6 +6,8 @@ Control-plane gateway for **Research2Repo**, **Quant2Repo**, and pluggable engin
 
 ## Architecture
 
+See [docs/architecture.md](docs/architecture.md) for the full architecture documentation, including end-to-end request flows, backend dispatch deep dives, dual-mode engine design, multi-tenancy & IAM, and worked examples.
+
 ```
                                 ┌─────────────────────────┐
                                 │   Engine Manifests       │
@@ -196,3 +198,11 @@ docker run -p 8000:8000 \
 | `aws_bedrock` | AWS | `boto3` | STS / WIF |
 | `azure_ml` | Microsoft Azure | `azure-ai-ml` | DefaultAzureCredential |
 | `on_prem` | Self-hosted | `httpx` / Docker CLI | N/A |
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [Architecture](docs/architecture.md) | System architecture, component design, request flows, backend dispatch, worked examples |
+| [Engine Protocol](docs/engine_protocol.md) | Engine manifest spec, input/output contracts, health checks, conformance checklist |
+| [Example Manifests](examples/) | Sample engine manifests for R2R, Q2R, and custom engines |

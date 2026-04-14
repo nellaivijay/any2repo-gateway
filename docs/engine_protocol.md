@@ -3,7 +3,7 @@
 > **Status:** Stable  
 > **Version:** 1.0  
 > **Last Updated:** 2025-01-15  
-> **Authors:** Any2Repo-Gateway Team
+> **Authors:** Vijayakumar Ramdoss (nellaivijay@gmail.com)
 
 ---
 
@@ -960,4 +960,4 @@ For programmatic validation, OpenAPI and JSON Schema definitions are available i
 
 ---
 
-*This specification is maintained by the Any2Repo-Gateway team. For questions, issues, or proposals, open an issue in the `Any2Repo-Gateway` repository.*
+*This specification is maintained by Vijayakumar Ramdoss (nellaivijay@gmail.com). For questions, issues, or proposals, open an issue in the `Any2Repo-Gateway` repository.*
