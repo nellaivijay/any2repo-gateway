@@ -2,14 +2,11 @@
 
 Supports four cloud backends (GCP Vertex AI, AWS Bedrock, Azure ML,
 On-Prem) and dynamic engine registration via manifests.
-
-Also provides the in-memory job store for tracking async job lifecycle.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 from app.backends.base import BaseBackend
@@ -23,9 +20,6 @@ from app.models.schemas import (
     CloudBackend,
     EngineConfig,
     EngineType,
-    JobResponse,
-    JobStatus,
-    JobStatusResponse,
     Tenant,
 )
 
@@ -111,45 +105,3 @@ def get_backend(
 def list_supported_backends() -> list[str]:
     """Return the list of supported cloud backend identifiers."""
     return [b.value for b in _BACKEND_MAP]
-
-
-# ── In-memory job store ──────────────────────────────────────────────────
-
-_JOBS: dict[str, JobStatusResponse] = {}
-
-
-def store_job(job: JobResponse) -> None:
-    """Persist a new job record."""
-    _JOBS[job.job_id] = JobStatusResponse(
-        job_id=job.job_id,
-        tenant_id=job.tenant_id,
-        engine=job.engine,
-        engine_id=job.engine_id,
-        cloud_backend=job.cloud_backend,
-        status=job.status,
-        created_at=job.created_at,
-        started_at=datetime.now(timezone.utc) if job.status == JobStatus.RUNNING else None,
-    )
-
-
-def get_job(job_id: str) -> Optional[JobStatusResponse]:
-    """Look up a job by ID."""
-    return _JOBS.get(job_id)
-
-
-def update_job(job_id: str, **fields) -> Optional[JobStatusResponse]:
-    """Update fields on an existing job record."""
-    job = _JOBS.get(job_id)
-    if job is None:
-        return None
-    for key, value in fields.items():
-        if hasattr(job, key):
-            setattr(job, key, value)
-    return job
-
-
-def list_jobs(tenant_id: str) -> list[JobStatusResponse]:
-    """List all jobs for a tenant, most recent first."""
-    jobs = [j for j in _JOBS.values() if j.tenant_id == tenant_id]
-    jobs.sort(key=lambda j: j.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-    return jobs

@@ -24,12 +24,24 @@ class Settings(BaseSettings):
     # In production, replace with a proper identity provider lookup.
     api_keys: str = Field("", alias="API_KEYS")
 
+    # ── State store ──────────────────────────────────────────────────
+    # Backend for persistent job and tenant state.
+    # Options: "memory" (dev/test), "firestore" (GCP prod)
+    store_backend: str = Field("memory", alias="STORE_BACKEND")
+
     # ── GCP / Vertex AI ──────────────────────────────────────────────
     gcp_project_id: str = Field("", alias="GCP_PROJECT_ID")
     gcp_region: str = Field("us-central1", alias="GCP_REGION")
     # Path to a service-account JSON key.  Left empty when using
     # Workload Identity Federation (preferred).
     gcp_sa_key_path: str = Field("", alias="GOOGLE_APPLICATION_CREDENTIALS")
+
+    # ── GCS Artifact Bucket ──────────────────────────────────────────
+    # Engines upload zipped repos to this bucket.  The gateway generates
+    # pre-signed URLs pointing here for customer download.
+    gcs_artifact_bucket: str = Field("", alias="GCS_ARTIFACT_BUCKET")
+    # Pre-signed URL lifetime in seconds (default 15 minutes).
+    presigned_url_ttl: int = Field(900, alias="PRESIGNED_URL_TTL")
 
     # ── AWS / Bedrock ────────────────────────────────────────────────
     aws_region: str = Field("us-east-1", alias="AWS_REGION")
@@ -55,6 +67,12 @@ class Settings(BaseSettings):
     job_ttl_hours: int = Field(72, alias="JOB_TTL_HOURS")
     # Directory containing engine manifest JSON files for plugin discovery
     engine_manifests_dir: str = Field("", alias="ENGINE_MANIFESTS_DIR")
+
+    # ── Webhook security ─────────────────────────────────────────────
+    # HMAC secret used to verify engine webhook signatures.
+    # When set, the gateway rejects any webhook missing a valid
+    # X-Webhook-Signature header.
+    webhook_secret: str = Field("", alias="WEBHOOK_SECRET")
 
     model_config = {"env_prefix": "", "case_sensitive": False}
 

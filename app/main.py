@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +21,8 @@ from app.config import settings
 from app.engine_manifest import init_manifests, list_manifests
 from app.engine_registry import list_supported_backends
 from app.middleware.auth import TenantAuthMiddleware, seed_default_tenant
-from app.routers import engines, jobs, tenants
+from app.routers import engines, jobs, tenants, webhooks
+from app.store import BaseStore, create_store
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -30,10 +32,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ── Singleton state store ────────────────────────────────────────────────
+
+_store: Optional[BaseStore] = None
+
+
+def get_store() -> BaseStore:
+    """Return the global state store (lazy-initialised on first call).
+
+    This is the canonical way to obtain the store instance from routers,
+    middleware, and other modules.  All of them use a deferred import:
+        ``from app.main import get_store``
+    """
+    global _store
+    if _store is None:
+        _store = create_store(settings.store_backend)
+        logger.info("Initialised state store: %s", settings.store_backend)
+    return _store
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown lifecycle."""
     logger.info("Starting %s (%s)", settings.app_name, settings.environment)
+
+    # Ensure the store is created before anything else touches it
+    get_store()
     seed_default_tenant()
 
     # Load engine manifests (built-in + plugin directory)
@@ -80,6 +104,7 @@ app.add_middleware(TenantAuthMiddleware)
 app.include_router(jobs.router)
 app.include_router(tenants.router)
 app.include_router(engines.router)
+app.include_router(webhooks.router)
 
 
 # ── Root / Health ────────────────────────────────────────────────────────

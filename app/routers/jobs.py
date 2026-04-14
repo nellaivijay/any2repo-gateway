@@ -20,11 +20,17 @@ from app.models.schemas import (
     JobStatusResponse,
     Tenant,
 )
-from app.engine_registry import get_backend, store_job, get_job, update_job, list_jobs
+from app.engine_registry import get_backend
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
+
+
+def _get_store():
+    """Deferred import to avoid circular dependency."""
+    from app.main import get_store
+    return get_store()
 
 
 def _resolve_backend(tenant: Tenant, request: JobRequest) -> CloudBackend:
@@ -60,8 +66,9 @@ async def submit_job(req: JobRequest, request: Request) -> JobResponse:
         )
 
     # Check concurrency limit
+    store = _get_store()
     active_jobs = [
-        j for j in list_jobs(tenant.tenant_id)
+        j for j in store.list_jobs(tenant.tenant_id)
         if j.status in (JobStatus.PENDING, JobStatus.RUNNING)
     ]
     if len(active_jobs) >= tenant.max_concurrent_jobs:
@@ -90,7 +97,7 @@ async def submit_job(req: JobRequest, request: Request) -> JobResponse:
         payload=payload,
     )
 
-    store_job(job_resp)
+    store.store_job(job_resp)
 
     logger.info(
         "Job %s submitted: engine=%s backend=%s tenant=%s",
@@ -105,7 +112,8 @@ async def submit_job(req: JobRequest, request: Request) -> JobResponse:
 async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
     """Get the current status of a job."""
     tenant: Tenant = request.state.tenant
-    job = get_job(job_id)
+    store = _get_store()
+    job = store.get_job(job_id)
 
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
@@ -118,11 +126,11 @@ async def get_job_status(job_id: str, request: Request) -> JobStatusResponse:
         backend = get_backend(job.engine, job.cloud_backend, tenant)
         cloud_status = await backend.get_job_status(job_id)
         if cloud_status.status != job.status:
-            update_job(job_id, status=cloud_status.status,
-                       output_url=cloud_status.output_url,
-                       error=cloud_status.error,
-                       metadata=cloud_status.metadata)
-            job = get_job(job_id)
+            store.update_job(job_id, status=cloud_status.status,
+                             output_url=cloud_status.output_url,
+                             error=cloud_status.error,
+                             metadata=cloud_status.metadata)
+            job = store.get_job(job_id)
 
     return job
 
@@ -138,7 +146,8 @@ async def list_tenant_jobs(
 ) -> list[JobStatusResponse]:
     """List all jobs for the authenticated tenant."""
     tenant: Tenant = request.state.tenant
-    jobs = list_jobs(tenant.tenant_id)
+    store = _get_store()
+    jobs = store.list_jobs(tenant.tenant_id)
 
     if status:
         jobs = [j for j in jobs if j.status == status]
@@ -154,7 +163,8 @@ async def list_tenant_jobs(
 async def cancel_job(job_id: str, request: Request) -> dict:
     """Cancel a running job."""
     tenant: Tenant = request.state.tenant
-    job = get_job(job_id)
+    store = _get_store()
+    job = store.get_job(job_id)
 
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
@@ -167,7 +177,7 @@ async def cancel_job(job_id: str, request: Request) -> dict:
     cancelled = await backend.cancel_job(job_id)
 
     if cancelled:
-        update_job(job_id, status=JobStatus.CANCELLED)
+        store.update_job(job_id, status=JobStatus.CANCELLED)
         return {"job_id": job_id, "status": "cancelled"}
     else:
         return {"job_id": job_id, "status": "cancel_requested",

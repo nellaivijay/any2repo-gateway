@@ -36,10 +36,20 @@ class CloudBackend(str, Enum):
 class JobStatus(str, Enum):
     """Lifecycle states for an async job."""
     PENDING = "pending"
+    DISPATCHED = "dispatched"
     RUNNING = "running"
     COMPLETED = "completed"
+    DELIVERING = "delivering"
+    DELIVERED = "delivered"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class DeliveryMethod(str, Enum):
+    """How artifacts are delivered to the tenant."""
+    PRESIGNED_URL = "presigned_url"
+    BYOC_TUNNEL = "byoc_tunnel"
+    DIRECT_DOWNLOAD = "direct_download"
 
 
 # ── Engine Protocol ──────────────────────────────────────────────────────
@@ -133,6 +143,13 @@ class Tenant(BaseModel):
     )
     max_concurrent_jobs: int = 5
     active: bool = True
+    # BYOC tunnel
+    tunnel_url: Optional[str] = Field(
+        None,
+        description="Active Cloudflare Tunnel endpoint (e.g. https://<id>.cfargotunnel.com)",
+    )
+    tunnel_registered_at: Optional[datetime] = None
+    delivery_method: DeliveryMethod = DeliveryMethod.PRESIGNED_URL
 
 
 # ── Job Request / Response ───────────────────────────────────────────────
@@ -186,10 +203,77 @@ class JobStatusResponse(BaseModel):
     created_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    dispatched_at: Optional[datetime] = None
     elapsed_seconds: Optional[float] = None
     output_url: Optional[str] = None
+    artifact_url: Optional[str] = Field(
+        None,
+        description="Pre-signed URL to the zipped output artifact (time-limited)",
+    )
+    artifact_size_bytes: Optional[int] = None
     error: Optional[str] = None
     metadata: dict = Field(default_factory=dict)
+
+
+# ── Webhook Payload (Engine → Gateway) ───────────────────────────────────
+
+
+class EngineWebhookPayload(BaseModel):
+    """Payload POSTed by the engine to /api/v1/webhooks/engine-complete.
+
+    This is the body the engine sends when it finishes (success or failure).
+    It carries only lightweight metadata + a pre-signed URL to the heavy
+    artifact — the gateway never buffers the full repo zip in memory.
+    """
+    job_id: str = Field(..., description="Job ID that was passed to the engine at dispatch time")
+    status: str = Field(..., description="'completed' or 'failed'")
+    engine_id: str = Field("", description="Engine that processed the job")
+    artifact_url: Optional[str] = Field(
+        None,
+        description=(
+            "Pre-signed GCS/S3 URL pointing to the zipped output repo. "
+            "Valid for ~15 minutes. Required when status='completed'."
+        ),
+    )
+    artifact_size_bytes: Optional[int] = Field(
+        None, description="Size of the zip artifact in bytes",
+    )
+    files_generated: int = Field(0, description="Number of files in the output repo")
+    elapsed_seconds: float = Field(0.0, description="Wall-clock pipeline execution time")
+    error: Optional[str] = Field(None, description="Error message (required when status='failed')")
+    output_url: Optional[str] = Field(None, description="Optional GitHub / external repo URL")
+    metadata: dict = Field(default_factory=dict, description="Engine-specific metadata")
+
+
+class WebhookAck(BaseModel):
+    """Response returned by the gateway after processing a webhook."""
+    job_id: str
+    status: JobStatus
+    delivery_initiated: bool = False
+    message: str = ""
+
+
+# ── BYOC Tunnel Registration ────────────────────────────────────────────
+
+
+class TunnelRegistrationRequest(BaseModel):
+    """Request body for POST /api/v1/tenants/{tenant_id}/register-tunnel.
+
+    Sent by the cloudflared initContainer in the customer's K8s cluster
+    once the Cloudflare Tunnel is established.
+    """
+    tunnel_url: str = Field(
+        ...,
+        description="The Cloudflare Tunnel endpoint URL (e.g. https://<id>.cfargotunnel.com)",
+    )
+
+
+class TunnelRegistrationResponse(BaseModel):
+    """Confirmation returned after tunnel registration."""
+    tenant_id: str
+    tunnel_url: str
+    registered_at: datetime
+    message: str = "Tunnel registered successfully"
 
 
 # ── Engine Config ────────────────────────────────────────────────────────

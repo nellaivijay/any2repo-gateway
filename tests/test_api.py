@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.middleware.auth import register_tenant, _TENANTS
+from app.main import app, get_store
+from app.store import MemoryStore
 from app.models.schemas import (
     Tenant, CloudBackend, EngineType, EngineCapability, EngineManifest,
 )
@@ -22,8 +22,10 @@ from tests.conformance import (
 @pytest.fixture(autouse=True)
 def _clear_state():
     """Reset tenant and manifest stores between tests."""
-    _TENANTS.clear()
-    register_tenant(Tenant(
+    import app.main as _main
+    _main._store = MemoryStore()
+    store = get_store()
+    store.store_tenant(Tenant(
         tenant_id="test-tenant",
         name="Test Tenant",
         cloud_backend=CloudBackend.GCP_VERTEX,
@@ -32,7 +34,7 @@ def _clear_state():
     _MANIFESTS.clear()
     init_manifests()
     yield
-    _TENANTS.clear()
+    _main._store = None
     _MANIFESTS.clear()
 
 
