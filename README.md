@@ -1,238 +1,208 @@
-# Any2Repo-Gateway v2.0
+# Any2Repo-Gateway
 
-Control-plane gateway for **Research2Repo**, **Quant2Repo**, and pluggable engines. Routes conversion jobs to **GCP Vertex AI**, **AWS Bedrock**, **Azure ML**, or **on-premise infrastructure**. Features **async state machine** with persistent store, **HMAC-signed webhooks**, **cloud-agnostic artifact delivery** (GCS/S3/Azure Blob/local), **BYOC tunnel registration**, and **multi-model** provider routing.
+**Educational orchestration gateway for scaling research-to-repo implementation pipelines**
 
-**No LangChain. No LangGraph.** Just FastAPI + boto3 + Vertex AI SDK + azure-ai-ml + httpx.
+Any2Repo-Gateway is an open source educational tool designed to help students and researchers understand cloud orchestration patterns for scaling research-to-implementation workflows. It demonstrates how to route and manage distributed processing jobs across cloud infrastructure.
+
+## Educational Purpose
+
+This tool serves educational purposes by helping students and researchers:
+- Learn about cloud orchestration and job routing patterns
+- Understand distributed system architecture for AI workflows
+- Practice API gateway design and implementation
+- Study job queue management and scaling strategies
+- Explore cloud infrastructure integration (AWS, GCP, Azure)
+- Gain hands-on experience with microservices architecture
+
+## Key Features
+
+- **Multi-Cloud Support**: Integration with AWS, GCP, and Azure cloud providers
+- **Job Routing**: Intelligent routing based on resource requirements and availability
+- **Queue Management**: Built-in job queue with priority scheduling
+- **API Gateway**: RESTful API for job submission and monitoring
+- **Scalable Architecture**: Horizontal scaling for high-throughput processing
+- **Monitoring**: Real-time job status and resource utilization tracking
+- **Fault Tolerance**: Automatic retry and failover mechanisms
+- **Cost Optimization**: Spot instance utilization and resource optimization
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for the full architecture documentation, including end-to-end request flows, backend dispatch deep dives, dual-mode engine design, multi-tenancy & IAM, and worked examples.
+### Gateway Architecture
+```
+Client → [API Gateway] → [Job Router] → [Queue Manager] → [Worker Pool]
+                                    ↓
+                            [Cloud Provider Manager]
+                                    ↓
+                            [Resource Monitor]
+```
 
-```
-                                ┌─────────────────────────┐
-                                │   Engine Manifests       │
-                                │   (ENGINE_MANIFESTS_DIR) │
-                                └───────────┬─────────────┘
-                                            │
-                                            v
-┌──────────────┐      ┌─────────────────────────────┐      ┌──────────────────┐
-│   Client /   │─────>│     Any2Repo-Gateway        │─────>│  GCP Vertex AI   │
-│   Frontend   │      │     (FastAPI + Auth)         │      └──────────────────┘
-└──────────────┘      │                             │
-                      │  - Tenant auth + BYOC       │      ┌──────────────────┐
-  Pluggable Engine    │  - Async state machine      │─────>│  AWS Bedrock     │
-  Protocol            │  - HMAC webhook ingestion   │      └──────────────────┘
-  ───────────────>    │  - Cloud-agnostic artifacts  │
-  JSON manifests      │  - Multi-model routing      │      ┌──────────────────┐
-  register engines    │  - Persistent store          │─────>│  Azure ML        │
-                      │    (Memory / Firestore)     │      └──────────────────┘
-                      │                             │
-                      │                             │      ┌──────────────────┐
-                      │                             │─────>│  On-Prem         │
-                      └──────────┬──────────────────┘      │  (Docker / K8s)  │
-                                 │                         └──────────────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    │  Cloud Storage           │
-                    │  (GCS / S3 / Azure Blob) │
-                    │  Artifact upload +       │
-                    │  pre-signed URL delivery │
-                    └─────────────────────────┘
-```
+### Job Flow
+1. Client submits job via API
+2. Gateway validates and enqueues job
+3. Router assigns to optimal cloud provider/region
+4. Worker processes job using Research2Repo/Quant2Repo
+5. Results stored and client notified
 
 ## Quick Start
 
-```bash
-# Install
-pip install -e ".[dev]"
+### Installation
 
-# Run locally
+```bash
+# Clone the repository
+git clone https://github.com/nellaivijay/Any2Repo-Gateway.git
+cd Any2Repo-Gateway
+
+# Install dependencies
+pip install -e ".[dev]"
+```
+
+### Cloud Provider Setup
+
+```bash
+# AWS
+export AWS_ACCESS_KEY_ID="your_key"
+export AWS_SECRET_ACCESS_KEY="your_secret"
+export AWS_REGION="us-east-1"
+
+# GCP
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/credentials.json"
+
+# Azure
+export AZURE_SUBSCRIPTION_ID="your_subscription_id"
+export AZURE_TENANT_ID="your_tenant_id"
+export AZURE_CLIENT_ID="your_client_id"
+export AZURE_CLIENT_SECRET="your_client_secret"
+```
+
+### Basic Usage
+
+```bash
+# Start the gateway server
 uvicorn app.main:app --reload --port 8000
 
-# Run tests
-pytest tests/ -v
-```
-
-## Pluggable Engine Protocol
-
-Engines register with the gateway via JSON manifests. Each manifest declares the
-engine name, supported backends, input schema, and runtime requirements. The
-gateway discovers manifests at startup by scanning `ENGINE_MANIFESTS_DIR`.
-
-See [docs/engine_protocol.md](docs/engine_protocol.md) for the full specification.
-
-To register a new engine, drop a manifest into the directory:
-
-```bash
-export ENGINE_MANIFESTS_DIR=/etc/any2repo/engines
-
-# Copy your engine manifest
-cp my_engine.json "$ENGINE_MANIFESTS_DIR/"
-
-# Restart or send SIGHUP to reload
-kill -HUP $(pgrep -f uvicorn)
-```
-
-## API Usage
-
-```bash
-# Submit a Research2Repo job
+# Submit a job
 curl -X POST http://localhost:8000/api/v1/jobs \
-  -H "X-API-Key: your-key" \
-  -H "X-Tenant-ID: default" \
   -H "Content-Type: application/json" \
-  -d '{
-    "engine": "research2repo",
-    "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf"
-  }'
-
-# Submit a Quant2Repo job
-curl -X POST http://localhost:8000/api/v1/jobs \
-  -H "X-API-Key: your-key" \
-  -H "X-Tenant-ID: default" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "engine": "quant2repo",
-    "catalog_id": "time-series-momentum"
-  }'
-
-# Submit a job on Azure ML backend
-curl -X POST http://localhost:8000/api/v1/jobs \
-  -H "X-API-Key: your-key" \
-  -H "X-Tenant-ID: default" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "engine": "research2repo",
-    "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf",
-    "cloud_backend": "azure_ml"
-  }'
-
-# Submit a job on on-prem infrastructure
-curl -X POST http://localhost:8000/api/v1/jobs \
-  -H "X-API-Key: your-key" \
-  -H "X-Tenant-ID: default" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "engine": "research2repo",
-    "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf",
-    "cloud_backend": "on_prem"
-  }'
-
-# Submit a job with a specific LLM provider and model
-curl -X POST http://localhost:8000/api/v1/jobs \
-  -H "X-API-Key: your-key" \
-  -H "X-Tenant-ID: default" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "engine": "research2repo",
-    "pdf_url": "https://arxiv.org/pdf/1706.03762.pdf",
-    "provider": "gemini",
-    "model": "gemini-2.5-pro",
-    "options": {"mode": "agent", "refine": true}
-  }'
+  -d '{"engine": "research2repo", "pdf_url": "...", "mode": "agent", "provider": "gemini"}'
 
 # Check job status
-curl http://localhost:8000/api/v1/jobs/{job_id} \
-  -H "X-API-Key: your-key" \
-  -H "X-Tenant-ID: default"
+curl http://localhost:8000/api/v1/jobs/{job_id}
 
 # List all jobs
-curl http://localhost:8000/api/v1/jobs \
-  -H "X-API-Key: your-key" \
-  -H "X-Tenant-ID: default"
+curl http://localhost:8000/api/v1/jobs
 
-# List registered engines
-curl http://localhost:8000/api/v1/engines \
-  -H "X-API-Key: your-key"
-
-# List supported backends
-curl http://localhost:8000/api/v1/engines/backends \
-  -H "X-API-Key: your-key"
+# Cancel a job
+curl -X POST http://localhost:8000/api/v1/jobs/{job_id}/cancel
 ```
+
+## API Endpoints
+
+### Jobs
+- `POST /api/v1/jobs` - Submit new job
+- `GET /api/v1/jobs` - List all jobs
+- `GET /api/v1/jobs/{id}` - Get job details
+- `POST /api/v1/jobs/{id}/cancel` - Cancel job
+
+### Engines
+- `GET /api/v1/engines` - List registered engines
+- `GET /api/v1/engines/backends` - List supported backends
+- `GET /api/v1/engines/{id}` - Get engine manifest
+
+### Tenants
+- `POST /api/v1/tenants` - Register tenant
+- `GET /api/v1/tenants` - List tenants
+- `GET /api/v1/tenants/{id}` - Get tenant details
+
+### System
+- `GET /` - Service info
+- `GET /health` - Health check
 
 ## Configuration
 
-All settings are environment variables (see `.env.example`):
+### Gateway Configuration
+```yaml
+gateway:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  queue_size: 100
 
-| Variable | Description | Default |
-|---|---|---|
-| `API_KEYS` | Comma-separated valid API keys | (empty = no auth) |
-| `STORE_BACKEND` | State store backend: `memory` or `firestore` | `memory` |
-| `GCP_PROJECT_ID` | GCP project for Vertex AI | |
-| `GCP_REGION` | GCP region | `us-central1` |
-| `AWS_REGION` | AWS region for Bedrock | `us-east-1` |
-| `AWS_ROLE_ARN` | IAM role for WIF | |
-| `GOOGLE_APPLICATION_CREDENTIALS` | GCP SA key path (optional if using WIF) | |
-| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID for Azure ML | |
-| `AZURE_RESOURCE_GROUP` | Azure resource group name | |
-| `AZURE_WORKSPACE_NAME` | Azure ML workspace name | |
-| `AZURE_REGION` | Azure region | `eastus` |
-| `ON_PREM_ENDPOINT` | Base URL of on-prem execution service | `http://localhost:9000` |
-| `ON_PREM_DOCKER_NETWORK` | Docker network for on-prem containers | `any2repo` |
-| `ENGINE_MANIFESTS_DIR` | Directory containing engine JSON manifests | `./manifests` |
-| `ARTIFACT_BACKEND` | Artifact storage: `gcs`, `s3`, `azure`, `local` | (auto-detect) |
-| `ARTIFACT_BUCKET` | Bucket/container for artifact upload | |
-| `GCS_ARTIFACT_BUCKET` | Legacy alias for `ARTIFACT_BUCKET` (GCS) | |
-| `PRESIGNED_URL_TTL` | Pre-signed URL lifetime in seconds | `900` |
-| `LOCAL_ARTIFACT_DIR` | Base dir for local artifacts | |
-| `AZURE_STORAGE_ACCOUNT_URL` | Azure storage account URL | |
-| `WEBHOOK_SECRET` | HMAC-SHA256 secret for webhook signatures | |
+cloud:
+  providers:
+    - name: "aws"
+      regions: ["us-east-1", "us-west-2"]
+      instance_types: ["m5.large", "m5.xlarge"]
+    - name: "gcp"
+      regions: ["us-central1", "europe-west1"]
+      instance_types: ["n1-standard-2", "n1-standard-4"]
 
-## Cross-Cloud IAM (Workload Identity Federation)
+routing:
+  strategy: "cost_optimized"  # or "latency_optimized", "balanced"
+  max_retries: 3
+  timeout: 3600
+```
 
-The gateway supports **zero-secret** cross-cloud auth:
+## Project Structure
 
-1. Gateway runs on GCP with a service account
-2. GCP ID token is exchanged for temporary AWS credentials via STS
-3. No AWS access keys are stored anywhere
+```
+Any2Repo-Gateway/
+├── app/                       # Application code
+│   ├── main.py               # FastAPI application entry point
+│   ├── api/                  # API layer
+│   ├── gateway/              # Gateway core logic
+│   ├── cloud/                # Cloud provider integration
+│   ├── workers/              # Worker management
+│   ├── monitoring/           # Monitoring and metrics
+│   └── storage/              # Result storage
+├── docs/                     # Documentation
+├── examples/                 # Example manifests
+├── tests/                    # Test suite
+└── requirements.txt
+```
 
-Setup:
-1. Create an AWS IAM OIDC provider for `accounts.google.com`
-2. Create an IAM role with a trust policy allowing your GCP SA
-3. Set `AWS_ROLE_ARN` in the gateway environment
+## Development
 
-## Docker
+### Adding New Cloud Providers
+
+Implement the cloud provider interface in `app/cloud/` directory following existing patterns.
+
+### Testing
+
+Run the test suite:
+```bash
+pytest tests/ -v
+```
+
+### Local Development
+
+Run in development mode:
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+## Docker Deployment
 
 ```bash
+# Build image
 docker build -t any2repo-gateway .
+
+# Run container
 docker run -p 8000:8000 \
   -e API_KEYS="key1,key2" \
   -e GCP_PROJECT_ID="my-project" \
   any2repo-gateway
 ```
 
-## Endpoints
+## License
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/` | Service info |
-| `GET` | `/health` | Health check |
-| `POST` | `/api/v1/jobs` | Submit conversion job |
-| `GET` | `/api/v1/jobs` | List tenant jobs |
-| `GET` | `/api/v1/jobs/{id}` | Get job status |
-| `POST` | `/api/v1/jobs/{id}/cancel` | Cancel job |
-| `GET` | `/api/v1/engines` | List registered engines |
-| `GET` | `/api/v1/engines/backends` | List supported backends |
-| `GET` | `/api/v1/engines/{id}` | Get engine manifest |
-| `POST` | `/api/v1/tenants` | Register tenant |
-| `GET` | `/api/v1/tenants` | List tenants |
-| `GET` | `/api/v1/tenants/{id}` | Get tenant details |
-| `POST` | `/api/v1/tenants/{id}/register-tunnel` | Register BYOC Cloudflare Tunnel |
-| `POST` | `/api/v1/webhooks/engine-complete` | Engine completion webhook (HMAC-signed) |
+Apache 2.0 License - See LICENSE file for details.
 
-## Supported Backends
+## Educational Use
 
-| Backend | Provider | SDK | Auth |
-|---|---|---|---|
-| `gcp_vertex` | Google Cloud | `google-cloud-aiplatform` | ADC / WIF |
-| `aws_bedrock` | AWS | `boto3` | STS / WIF |
-| `azure_ml` | Microsoft Azure | `azure-ai-ml` | DefaultAzureCredential |
-| `on_prem` | Self-hosted | `httpx` / Docker CLI | N/A |
-
-## Documentation
-
-| Document | Description |
-|---|---|
-| [Architecture](docs/architecture.md) | System architecture, component design, request flows, backend dispatch, worked examples |
-| [Engine Protocol](docs/engine_protocol.md) | Engine manifest spec, input/output contracts, health checks, conformance checklist |
-| [Example Manifests](examples/) | Sample engine manifests for R2R, Q2R, and custom engines |
+This tool is provided for educational purposes to help students and researchers learn about:
+- Cloud orchestration and job routing patterns
+- Distributed system architecture for AI workflows
+- API gateway design and implementation
+- Job queue management and scaling strategies
+- Multi-cloud infrastructure integration
+- Microservices architecture patterns
