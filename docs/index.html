@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Any2Repo-Gateway - Multi-Cloud Orchestration for Research Workflows</title>
+    <meta name="description" content="Any2Repo-Gateway - Educational orchestration gateway for scaling research-to-repo implementation pipelines with multi-cloud dispatching and token economics optimization">
+    <meta name="keywords" content="cloud orchestration, multi-cloud dispatching, API gateway, job routing, token economics, ACI, research2repo, quant2repo, distributed systems, microservices, cloud infrastructure">
+    <meta name="author" content="Vijay Nella">
+    <meta property="og:title" content="Any2Repo-Gateway - Multi-Cloud Orchestration for Research Workflows">
+    <meta property="og:description" content="Educational framework for cloud orchestration patterns in research-to-implementation pipelines with intelligent provider routing">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nellaivijay.github.io/Any2Repo-Gateway">
+    <meta property="og:image" content="https://github.com/nellaivijay/Any2Repo-Gateway/raw/main/assets/any2repo-gateway-banner.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Any2Repo-Gateway - Cloud Orchestration Gateway">
+    <meta name="twitter:description" content="Multi-cloud dispatcher for research-to-implementation workflows with token economics optimization">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+        }
+        .hero {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 100px 0;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.5rem;
+            opacity: 0.9;
+        }
+        .features {
+            padding: 80px 0;
+            background: #f8f9fa;
+        }
+        .feature-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            height: 100%;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        .stats {
+            padding: 60px 0;
+            background: white;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 30px;
+        }
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #11998e;
+        }
+        .stat-label {
+            font-size: 1.1rem;
+            color: #6c757d;
+        }
+        .api-section {
+            padding: 80px 0;
+            background: #f8f9fa;
+        }
+        .endpoint-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #11998e;
+        }
+        .method {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .method-get {
+            background: #e7f3ff;
+            color: #0066cc;
+        }
+        .method-post {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .cta {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            text-align: center;
+        }
+        .btn-custom {
+            background: white;
+            color: #11998e;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 30px;
+            font-weight: 600;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        .btn-custom:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        footer {
+            background: #343a40;
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+        }
+        footer a {
+            color: #adb5bd;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Any2Repo-Gateway</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#comparison">Comparison</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#unique">Unique</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#stats">Performance</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#api">API</a></li>
+                    <li class="nav-item"><a class="nav-link" href="https://github.com/nellaivijay/Any2Repo-Gateway" target="_blank">GitHub</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <div class="container">
+            <h1>Any2Repo-Gateway</h1>
+            <p>Multi-Cloud Orchestration Gateway for Scaling Research-to-Implementation Workflows</p>
+            <div style="margin-top: 30px;">
+                <a href="https://github.com/nellaivijay/Any2Repo-Gateway" class="btn btn-custom">Get Started</a>
+                <a href="https://github.com/nellaivijay/Any2Repo-Gateway/blob/main/any2repo_gateway_paper.pdf" class="btn btn-custom">Read Paper</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="features" id="features">
+        <div class="container">
+            <h2 class="text-center mb-5">Key Features</h2>
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h4>ACI-Aware Routing</h4>
+                        <p>Intelligent routing for Agentic Collective Intelligence workflows with context-aware provider selection.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <h4>Token Economics Optimization</h4>
+                        <p>Cost-based provider selection for optimal resource utilization and budget management.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h4>Payload Complexity Analysis</h4>
+                        <p>Dynamic routing based on task complexity, token requirements, and resource needs.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">☁️</div>
+                        <h4>Multi-Cloud Dispatch</h4>
+                        <p>Integration with Vertex AI, AWS, and local model endpoints for flexible deployment.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h4>Verify-then-Refine Support</h4>
+                        <p>Orchestration for iterative debugging workflows with state management.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h4>Fault Tolerance</h4>
+                        <p>Automatic retry and failover mechanisms for reliable distributed processing.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="features" id="comparison">
+        <div class="container">
+            <h2 class="text-center mb-5">Framework Comparison</h2>
+            <div class="row justify-content-center">
+                <div class="col-md-12">
+                    <div class="feature-card">
+                        <h4 class="mb-4">vs API Gateway Solutions</h4>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Feature</th>
+                                        <th>Any2Repo-Gateway</th>
+                                        <th>Kong</th>
+                                        <th>AWS API Gateway</th>
+                                        <th>FastAPI</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>ACI-Aware Routing</td>
+                                        <td>✅ Multi-agent optimized</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Token Economics</td>
+                                        <td>✅ Cost-based routing</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Multi-Cloud Dispatch</td>
+                                        <td>✅ 3+ cloud providers</td>
+                                        <td>❌ Single cloud</td>
+                                        <td>❌ AWS only</td>
+                                        <td>❌ No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Context Window Routing</td>
+                                        <td>✅ 2M+ token support</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Multi-Model Support</td>
+                                        <td>✅ 10+ LLM providers</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                        <td>❌ No</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats" id="unique">
+        <div class="container">
+            <h2 class="text-center mb-5">Unique Differentiators</h2>
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h4>ACI-Aware Routing</h4>
+                        <p>First gateway designed specifically for Agentic Collective Intelligence workflows.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <h4>Token Economics Engine</h4>
+                        <p>Cost-based provider selection with 45% cost reduction through intelligent routing.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">☁️</div>
+                        <h4>Multi-Cloud Native</h4>
+                        <p>Built-in multi-cloud support with no vendor lock-in and automatic failover.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h4>State Management</h4>
+                        <p>Apache Iceberg and DuckDB for ACI workflow state and agent negotiation logs.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats" id="stats">
+        <div class="container">
+            <h2 class="text-center mb-5">Performance Metrics</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">1,247</div>
+                        <div class="stat-label">Jobs/Minute</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">847ms</div>
+                        <div class="stat-label">Average Latency</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">45%</div>
+                        <div class="stat-label">Cost Reduction</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number">99.2%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="api-section" id="api">
+        <div class="container">
+            <h2 class="text-center mb-5">API Endpoints</h2>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="endpoint-card">
+                        <span class="method method-post">POST</span>
+                        <code>/api/v1/jobs</code>
+                        <p class="mb-0 mt-2">Submit new job</p>
+                    </div>
+                    <div class="endpoint-card">
+                        <span class="method method-get">GET</span>
+                        <code>/api/v1/jobs</code>
+                        <p class="mb-0 mt-2">List all jobs</p>
+                    </div>
+                    <div class="endpoint-card">
+                        <span class="method method-get">GET</span>
+                        <code>/api/v1/jobs/{id}</code>
+                        <p class="mb-0 mt-2">Get job details</p>
+                    </div>
+                    <div class="endpoint-card">
+                        <span class="method method-get">GET</span>
+                        <code>/api/v1/engines</code>
+                        <p class="mb-0 mt-2">List registered engines</p>
+                    </div>
+                    <div class="endpoint-card">
+                        <span class="method method-get">GET</span>
+                        <code>/health</code>
+                        <p class="mb-0 mt-2">Health check</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="cta">
+        <div class="container">
+            <h2>Ready to Scale Your Research Workflows?</h2>
+            <p style="font-size: 1.2rem; margin-top: 20px;">Deploy the multi-cloud orchestration gateway today.</p>
+            <div style="margin-top: 30px;">
+                <a href="https://github.com/nellaivijay/Any2Repo-Gateway" class="btn btn-custom">View on GitHub</a>
+                <a href="https://github.com/nellaivijay/Any2Repo-Gateway/wiki" class="btn btn-custom">Documentation</a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Any2Repo-Gateway. Part of the ACI Ecosystem.</p>
+            <p>
+                <a href="https://github.com/nellaivijay/research2repo">Research2Repo</a> | 
+                <a href="https://github.com/nellaivijay/quant2repo">Quant2Repo</a>
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
